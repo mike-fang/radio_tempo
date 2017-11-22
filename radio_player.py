@@ -1,18 +1,24 @@
 import pygame
-import os, time
+import os, time, sys
 import random
 from pygame.mixer import music
 
 from KY040 import KY040
 import RPi.GPIO as GPIO
 
+
 CWD = os.getcwd()
 MUSIC_DIR = os.path.join(CWD, 'music')
 YEAR_DIRS = [os.path.join(MUSIC_DIR, f) for f in os.listdir(MUSIC_DIR) if not f.startswith(',')]
 YEAR_DIRS.sort()
 
-def get_songs_from_year(y):
-	return [os.path.join(y, f) for f in os.listdir(y) if not f.startswith('.')]
+def shutdown():
+	command = '/usr/bin/sudo /sbin/shutdown now'
+	import subprocess
+	process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
+	output = process.communicate()[0]
+	print output
+	
 
 class MusicPlayer(object):
 	def __init__(self, channel_dir, start_playing = True):
@@ -51,7 +57,7 @@ class MusicPlayer(object):
 		self.play_pos = 0
 		self.num_songs = len(pl)
 		self.playlist = pl
-		
+
 
 	def toggle_pause(self):
 		if not self.playing:
@@ -95,9 +101,18 @@ if __name__ == '__main__':
 
 	player = MusicPlayer(YEAR_DIRS)
 
+	prev_press = 0
+	def button_press():
+		global prev_press
+		if time.time() - prev_press > 1.0:
+			player.toggle_pause()
+		else:
+			shutdown()
+		prev_press = time.time()
+
 	GPIO.setmode(GPIO.BCM)
 	ky040 = KY040(CLOCKPIN, DATAPIN, SWITCHPIN,
-		  player.change_chan, player.toggle_pause)
+		  player.change_chan, button_press)
 	ky040.start()
 
 
